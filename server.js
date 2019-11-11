@@ -4,6 +4,7 @@ let morgan = require( "morgan" );
 let mongoose = require( "mongoose" );
 let bodyParser = require( "body-parser" );
 let { StudentList } = require('./model');
+const {DATABASE_URL, PORT} = require('./config');
 
 let app = express();
 let jsonParser = bodyParser.json();
@@ -41,15 +42,20 @@ app.get( "/api/students", ( req, res, next ) => {
 		});
 });
 
-app.post( "/api/postStudent", jsonParser, ( req, res, next ) => {
+app.post( "/api/students", jsonParser, ( req, res, next ) => {
+	if (!req.body.firstName) {
+		return res.status(401).json("Missing firstName parameter");
+	}
+	if (!req.body.firstName) {
+		return res.status(401).json("Missing lastName parameter");
+	}
+
 	let firstName = req.body.firstName;
 	let lastName = req.body.lastName;
-	let id = req.body.id;
 
 	let newStudent = {
 		firstName,
-		lastName,
-		id
+		lastName
 	}
 
 	StudentList.post(newStudent)
@@ -64,47 +70,15 @@ app.post( "/api/postStudent", jsonParser, ( req, res, next ) => {
 			res.statusMessage = "Something went wrong with the DB. Try again later.";
 			return res.status( 500 ).json({
 				status : 500,
-				message : "Something went wrong with the DB. Try again later."
+				message : "Something went wrong with the DB. Try again later.",
+				err: error
 			})
 		});
-	/*
-	if ( ! name || ! id ){
-		res.statusMessage = "Missing field in body!";
-		return res.status( 406 ).json({
-			message : "Missing field in body!",
-			status : 406
-		});
-	}
-
-	for( let i = 0; i < students.length; i ++ ){
-		if ( id == students[i].id ){
-			res.statusMessage = "Repeated identifier, cannot add to the list.";
-
-			return res.status( 409 ).json({
-				message : "Repeated identifier, cannot add to the list.",
-				status : 409
-			});
-		}
-	}
-
-	let newStudent = {
-		id : id,
-		name : name
-	};
-
-	students.push( newStudent );
-
-	return res.status( 201 ).json({
-		message : "Student added to the list",
-		status : 201,
-		student : newStudent
-	});
-	*/
 
 });
 
-app.get( "/api/getStudentById", ( req, res, next ) =>{
-	let id = req.query.id;
+app.put( "/api/students/:id", jsonParser, ( req, res, next ) => {
+	let id = req.params.id;
 
 	if ( !id ){
 		res.statusMessage = "Missing 'id' field in params!";
@@ -114,27 +88,71 @@ app.get( "/api/getStudentById", ( req, res, next ) =>{
 		});
 	}
 
-	for( let i = 0; i < students.length; i ++ ){
-		if ( id == students[i].id ){
-			return res.status( 202 ).json({
-				message : "Student found in the list",
-				status : 202,
-				student : students[i]
+	StudentList.put(id, req.body.newValue)
+		.then( student => {
+			return res.status( 201 ).json({
+				message : "Student added to the list",
+				status : 201,
+				student : student
 			});
-		}
-	}
-
-	res.statusMessage = "Student not found in the list.";
-
-	return res.status( 404 ).json({
-		message : "Student not found in the list.",
-		status : 404
-	});
-
+		})
+		.catch( error => {
+			res.statusMessage = "Something went wrong with the DB. Try again later.";
+			return res.status( 500 ).json({
+				status : 500,
+				message : "Something went wrong with the DB. Try again later.",
+				err: error
+			})
+		});
 });
 
+app.get( "/api/students/:id", ( req, res, next ) => {
+	let id = req.params.id;
 
+	if ( !id ){
+		res.statusMessage = "Missing 'id' field in params!";
+		return res.status( 406 ).json({
+			message : "Missing 'id' field in params!",
+			status : 406
+		});
+	}
 
+	StudentList.get_by_id(id)
+		.then( student => {
+			return res.status( 200 ).json( student );
+		})
+		.catch( error => {
+			res.statusMessage = "Something went wrong with the DB. Try again later.";
+			return res.status( 500 ).json({
+				status : 500,
+				message : "Something went wrong with the DB. Try again later."
+			})
+		});
+});
+
+app.delete( "/api/students/:id", ( req, res, next ) => {
+	let id = req.params.id;
+
+	if ( !id ){
+		res.statusMessage = "Missing 'id' field in params!";
+		return res.status( 406 ).json({
+			message : "Missing 'id' field in params!",
+			status : 406
+		});
+	}
+
+	StudentList.delete(id)
+		.then( student => {
+			return res.status( 200 ).json( student );
+		})
+		.catch( error => {
+			res.statusMessage = "Something went wrong with the DB. Try again later.";
+			return res.status( 500 ).json({
+				status : 500,
+				message : "Something went wrong with the DB. Try again later."
+			})
+		});
+});
 
 let server;
 
@@ -175,24 +193,9 @@ function closeServer(){
 		});
 }
 
-runServer( 8181, "mongodb://localhost/studentsDB" )
+runServer( 8080, "mongodb://localhost/studentsDB" )
 	.catch( err => {
 		console.log( err );
 	});
 
 module.exports = { app, runServer, closeServer };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
